@@ -1,11 +1,3 @@
-/*
-  Instruções para compilação e execução
-  Disciplina COM240 - Redes de Computadores
-  Professor Bruno Guazzelli Batista
-  Compilar - gcc clienteudp.c -o clienteudp
-  Executar - ./clienteudp 127.0.0.1 mensagem
-*/
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -13,74 +5,81 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <string.h> /* memset() */
-#include <sys/time.h> /* select() */ 
+#include <stdlib.h>
+#include <string.h>   /* memset() */
+#include <sys/time.h> /* select() */
 
 #define REMOTE_SERVER_PORT 1500
-#define MAX_MSG 100
+#define IP_LOCAL "127.0.0.1"
+#define SIZE 1024
 
 
-int main(int argc, char *argv[]) {
-  
-  int sd, rc, i;
-  struct sockaddr_in cliAddr, remoteServAddr;
-  struct hostent *h;
+void enviaRequisicao(int sd, struct sockaddr_in remoteServAddr, char * buffer) {
+  int n;
 
-  /* check command line args */
-  if(argc<3) {
-    printf("usage : %s <server> <data1> ... <dataN> \n", argv[0]);
-    //exit(1);
-  }
+  //envia a requisição do arquivo desejado
+  n = sendto(sd, buffer, strlen(buffer), 0, (struct sockaddr *) &remoteServAddr, sizeof(remoteServAddr));
 
-  /* get server IP address (no check if input is IP address or DNS name */
-  h = gethostbyname(argv[1]);
-  if(h==NULL) {
-    printf("%s: unknown host '%s' \n", argv[0], argv[1]);
-    //exit(1);
-  }
-
-  printf("%s: sending data to '%s' (IP : %s) \n", argv[0], h->h_name,
-	 inet_ntoa(*(struct in_addr *)h->h_addr_list[0]));
-
-  remoteServAddr.sin_family = h->h_addrtype;
-  memcpy((char *) &remoteServAddr.sin_addr.s_addr, 
-	 h->h_addr_list[0], h->h_length);
-  remoteServAddr.sin_port = htons(REMOTE_SERVER_PORT);
-
-  /* socket creation */
-  sd = socket(AF_INET,SOCK_DGRAM,0);
-  if(sd<0) {
-    printf("%s: cannot open socket \n",argv[0]);
-    //exit(1);
-  }
-  
-  /* bind any port */
-  cliAddr.sin_family = AF_INET;
-  cliAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  cliAddr.sin_port = htons(0);
-  
-  rc = bind(sd, (struct sockaddr *) &cliAddr, sizeof(cliAddr));
-  if(rc<0) {
-    printf("%s: cannot bind port\n", argv[0]);
-    //exit(1);
+  //checagem de erro
+  if(n == -1)
+  {
+    perror("[ERROR] Enviar requisição para o servidor");
+    exit(1);
   }
 
 
-  /* send data */
-  for(i=2;i<argc;i++) {
-    rc = sendto(sd, argv[i], strlen(argv[i])+1, 0, 
-		(struct sockaddr *) &remoteServAddr, 
-		sizeof(remoteServAddr));
+  //Esperando resposta do servidor
+  while (1)
+  {
+    //zerando o buffer para receber a resposta do servidor
+    memset(buffer, '\0', SIZE);
 
-    if(rc<0) {
-      printf("%s: cannot send data %d \n",argv[0],i-1);
-      close(sd);
-      //exit(1);
-    }
 
   }
   
-  return 1;
 
 }
 
+
+int main(int argc, char *argv[])
+{
+
+  int sd, rc;
+  struct sockaddr_in remoteServAddr;
+
+  char *buffer = (char*) malloc(SIZE * sizeof(char));
+
+  // Validação do parâmetro passado
+  if(argc == 1)
+  {
+    printf("Error -- Inserir nome do arquivo desejado");
+    exit(1);
+  }
+
+  strcpy(buffer, argv[1]);
+
+  //Criação do socket
+  sd = socket(AF_INET, SOCK_DGRAM, 0);
+  //Checagem de erro
+  if(sd == -1)
+  {
+    perror("Error");
+    exit(1);
+  }
+
+  //zerando a struct
+  memset(&remoteServAddr, 0, sizeof(remoteServAddr));
+
+  //struct com dados do servidor
+  remoteServAddr.sin_family = AF_INET;
+  remoteServAddr.sin_port = htons(REMOTE_SERVER_PORT);
+  remoteServAddr.sin_addr.s_addr = inet_addr(IP_LOCAL);
+  
+
+  enviaRequisicao(sd, remoteServAddr, buffer);
+
+
+
+  free(buffer);
+  return 0;
+}
