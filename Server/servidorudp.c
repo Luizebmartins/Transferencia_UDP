@@ -13,6 +13,11 @@
 #define MAX_BUFFER 1024
 #define IP_LOCAL "127.0.0.1"
 
+typedef struct bloco{
+    int porta_cliente;          
+    char arquivo[30];     
+}bloco;
+
 int verifica_requisicao(int qtd_req){
 	if(qtd_req == 1){
 		printf("Nenhum arquivo foi requisitado.\n");
@@ -56,9 +61,9 @@ int busca_no_banco(FILE *BD, char *requisicao){
 
 int verifica_buffer(char *buffer){
 	if(buffer[0] != '\0') return 1;
-	printf("Nenhum dado foi recebido.\n");
 	return 0;
 }
+
 
 int main(int argc, char *argv[]){
 
@@ -74,13 +79,8 @@ int main(int argc, char *argv[]){
 	char *buffer = (char *) malloc(MAX_BUFFER * sizeof(char));
 	
 	FILE *BD;
-	
-	if(verifica_requisicao(argc)) return 1;
-	strcpy(requisicao, argv[1]);
 
-	BD = fopen("database.txt", "rb");
-	
-	if(busca_no_banco(BD, requisicao)) return 1;
+	BD = fopen("banco_de_dados.txt", "rb");
 
 	configura_socket(socket_serv, endereco_serv, tam_struct_clienteA);
 
@@ -89,16 +89,32 @@ int main(int argc, char *argv[]){
   	while(1){
   		memset(buffer,'\0', MAX_BUFFER);
   		tam_struct_clienteA = sizeof(endereco_clienteA);
+
   		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
-  		strcat(buffer, cliente_com_arquivo);
-  		sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
 
   		if(verifica_buffer(buffer)){
+  			if(verifica_banco(BD)) return 1;
+  			if(busca_no_banco(BD, buffer)) return 1;
+  			memset(buffer,'\0', MAX_BUFFER);
 			buffer[0] = '1';
 			strcat(buffer, requisicao);
 			sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
-  		}else return 1;
+  		}
   		
+  	}
+
+  	bloco blk;
+
+  	while(1){
+        memset(&blk, 0x0, sizeof(bloco));
+        memset(buffer,'\0', MAX_BUFFER);
+        recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
+        strcpy(buffer, "1");
+        sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
+        fprintf(BD, "\n%s %d", blk.arquivo, blk.porta_cliente);
+        fflush(BD);
+        fclose(BD);
+        break;
   	}
 
 }
