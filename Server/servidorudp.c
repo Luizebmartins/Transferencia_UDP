@@ -106,14 +106,14 @@ int main(int argc, char *argv[]){
   	bloco blk;
 
   	while(1){
-        memset(&blk, 0x0, sizeof(bloco));
-        memset(buffer,'\0', MAX_BUFFER);
-        recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
-        strcpy(buffer, "1");
-        sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
-        fprintf(BD, "\n%s %d", blk.arquivo, blk.porta_cliente);
-        fflush(BD);
-        fclose(BD);
+		memset(&blk, 0x0, sizeof(bloco));
+		memset(buffer,'\0', MAX_BUFFER);
+		recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
+		strcpy(buffer, "1");
+		sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
+		fprintf(BD, "\n%s %d", blk.arquivo, blk.porta_cliente);
+		fflush(BD);
+		fclose(BD);
         break;
   	}
 
