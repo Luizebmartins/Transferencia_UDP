@@ -36,26 +36,25 @@ int verifica_banco(FILE *BD){
 	return 1;
 }
 
-void configura_socket(int socket_serv, struct sockaddr_in endereco_serv, socklen_t tam_struct_clienteA){
-	socket_serv = socket(AF_INET, SOCK_DGRAM, 0);
-	endereco_serv.sin_family = AF_INET;
-  	endereco_serv.sin_addr.s_addr = htonl(INADDR_ANY);
-  	endereco_serv.sin_port = htons(PORTA_SERVIDOR);
-  	bind(socket_serv, (struct sockaddr *) &endereco_serv, sizeof(endereco_serv));
-  	listen(socket_serv, 2);
+void configura_socket(int *socket_serv, struct sockaddr_in *endereco_serv, socklen_t tam_struct_clienteA){
+	
 }
 
-int busca_no_banco(FILE *BD, char *requisicao){
+int busca_no_banco(FILE *BD, char *buffer, char *porta_cliente_com_arquivo){
+
 	char porta_cliente[MAX_MSG];
 	char arquivo_BD[MAX_MSG];
 
-	while(fscanf(BD, "%s %s", arquivo_BD, porta_cliente) != EOF)
-		if(strcmp(arquivo_BD, requisicao) == 0){
-			strcpy(requisicao, porta_cliente);
+	while(fscanf(BD, "%s %s", arquivo_BD, porta_cliente) != EOF){
+
+		if(strcmp(arquivo_BD, buffer) == 0){
+
+			strcpy(porta_cliente_com_arquivo, porta_cliente);
+
 			return 0;
 		}
-		
-	printf("Arquivo não existe no banco de dados.\n");
+	}
+
 	return 1;
 }
 
@@ -74,7 +73,6 @@ int main(int argc, char *argv[]){
 	struct sockaddr_in endereco_clienteA;
 	socklen_t tam_struct_clienteA;
 
-	char requisicao[MAX_MSG];
 	char cliente_com_arquivo[MAX_MSG];
 	char *buffer = (char *) malloc(MAX_BUFFER * sizeof(char));
 	
@@ -82,22 +80,38 @@ int main(int argc, char *argv[]){
 
 	BD = fopen("banco_de_dados.txt", "rb");
 
-	configura_socket(socket_serv, endereco_serv, tam_struct_clienteA);
+	socket_serv = socket(AF_INET, SOCK_DGRAM, 0);
 
-	//printf("%s\n", requisicao);
+	if(socket_serv < 0){
+		printf("Criação do socket falhou!\n");
+		return 1;
+	}
+
+	endereco_serv.sin_family = AF_INET;
+  	endereco_serv.sin_addr.s_addr = htonl(INADDR_ANY);
+  	endereco_serv.sin_port = htons(PORTA_SERVIDOR);
+
+  	if(bind(socket_serv, (struct sockaddr *) &endereco_serv, sizeof(endereco_serv)) < 0){
+  		printf("Bindo no socket falhou!\n");
+  		return 1;
+  	} 
+  	
+  	listen(socket_serv, 2);
 
   	while(1){
+  		
   		memset(buffer,'\0', MAX_BUFFER);
+  		
   		tam_struct_clienteA = sizeof(endereco_clienteA);
 
   		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
 
   		if(verifica_buffer(buffer)){
   			if(verifica_banco(BD)) return 1;
-  			if(busca_no_banco(BD, buffer)) return 1;
+  			busca_no_banco(BD, buffer, cliente_com_arquivo);
   			memset(buffer,'\0', MAX_BUFFER);
 			buffer[0] = '1';
-			strcat(buffer, requisicao);
+			strcat(buffer, cliente_com_arquivo);
 			sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
   		}
   		
