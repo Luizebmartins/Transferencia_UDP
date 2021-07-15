@@ -18,13 +18,6 @@ typedef struct bloco{
     char arquivo[30];     
 }bloco;
 
-int verifica_requisicao(int qtd_req){
-	if(qtd_req == 1){
-		printf("Nenhum arquivo foi requisitado.\n");
-		return 1;
-	}else return 0;
-}
-
 int verifica_banco(FILE *BD){
 	fseek(BD, 0, SEEK_END);
 	int arq_vazio = ftell(BD);
@@ -36,49 +29,9 @@ int verifica_banco(FILE *BD){
 	return 1;
 }
 
-void configura_socket(int *socket_serv, struct sockaddr_in *endereco_serv, socklen_t tam_struct_clienteA){
-	
-}
-
-int busca_no_banco(FILE *BD, char *buffer, char *porta_cliente_com_arquivo){
-
-	char porta_cliente[MAX_MSG];
-	char arquivo_BD[MAX_MSG];
-
-	while(fscanf(BD, "%s %s", arquivo_BD, porta_cliente) != EOF){
-
-		if(strcmp(arquivo_BD, buffer) == 0){
-
-			strcpy(porta_cliente_com_arquivo, porta_cliente);
-
-			return 0;
-		}
-	}
-
-	return 1;
-}
-
-int verifica_buffer(char *buffer){
-	if(buffer[0] != '\0') return 1;
-	return 0;
-}
-
-
-int main(int argc, char *argv[]){
-
-	int socket_serv;
-	int bind_serv;
-
+int configura_socket(){
 	struct sockaddr_in endereco_serv;
-	struct sockaddr_in endereco_clienteA;
-	socklen_t tam_struct_clienteA;
-
-	char cliente_com_arquivo[MAX_MSG];
-	char *buffer = (char *) malloc(MAX_BUFFER * sizeof(char));
-	
-	FILE *BD;
-
-	BD = fopen("banco_de_dados.txt", "rb");
+	int socket_serv;
 
 	socket_serv = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -98,23 +51,69 @@ int main(int argc, char *argv[]){
   	
   	listen(socket_serv, 2);
 
+  	return socket_serv;
+	
+}
+
+int busca_no_banco(FILE *BD, char *buffer, char *porta_cliente_com_arquivo){
+
+	char porta_cliente[MAX_MSG];
+	char arquivo_BD[MAX_MSG];
+
+	while(fscanf(BD, "%s %s", arquivo_BD, porta_cliente) != EOF){
+		if(strcmp(arquivo_BD, buffer) == 0){
+			strcpy(porta_cliente_com_arquivo, porta_cliente);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+int verifica_buffer(char *buffer){
+	if(buffer[0] != '\0') return 1;
+	return 0;
+}
+
+
+int main(int argc, char *argv[]){
+
+	int socket_serv;
+
+	
+	struct sockaddr_in endereco_cliente;
+	socklen_t tam_struct_clienteA;
+
+	char cliente_com_arquivo[MAX_MSG];
+	char *buffer = (char *) malloc(MAX_BUFFER * sizeof(char));
+	
+	FILE *BD;
+
+	BD = fopen("banco_de_dados.txt", "rb");
+
+	socket_serv = configura_socket();
+
   	while(1){
   		
   		memset(buffer,'\0', MAX_BUFFER);
   		
-  		tam_struct_clienteA = sizeof(endereco_clienteA);
+  		tam_struct_clienteA = sizeof(endereco_cliente);
 
-  		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
+  		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_cliente, &tam_struct_clienteA);
 
   		if(verifica_buffer(buffer)){
   			if(verifica_banco(BD)) return 1;
-  			busca_no_banco(BD, buffer, cliente_com_arquivo);
-  			memset(buffer,'\0', MAX_BUFFER);
-			buffer[0] = '1';
-			strcat(buffer, cliente_com_arquivo);
-			sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
+  			if(busca_no_banco(BD, buffer, cliente_com_arquivo)){
+  				memset(buffer,'\0', MAX_BUFFER);
+				buffer[0] = '1';
+				strcat(buffer, cliente_com_arquivo);
+				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_cliente, tam_struct_clienteA);
+  			}else{
+  				memset(buffer,'\0', MAX_BUFFER);
+				buffer[0] = '0';
+				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_cliente, tam_struct_clienteA);
+  			}
   		}
-  		
   	}
 
   	bloco blk;
@@ -122,9 +121,9 @@ int main(int argc, char *argv[]){
   	while(1){
 		memset(&blk, 0x0, sizeof(bloco));
 		memset(buffer,'\0', MAX_BUFFER);
-		recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
+		recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_cliente, &tam_struct_clienteA);
 		strcpy(buffer, "1");
-		sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
+		sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_cliente, tam_struct_clienteA);
 		fprintf(BD, "\n%s %d", blk.arquivo, blk.porta_cliente);
 		fflush(BD);
 		fclose(BD);
