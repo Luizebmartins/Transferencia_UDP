@@ -13,10 +13,11 @@
 #define MAX_BUFFER 1024
 #define IP_LOCAL "127.0.0.1"
 
-typedef struct bloco{
+//struct de resposta do cliente A ao servidor
+typedef struct mensagem{
     int porta_cliente;          
-    char arquivo[30];     
-}bloco;
+    char arquivo[20];     
+}mensagem;
 
 int verifica_banco(FILE *BD){
 	fseek(BD, 0, SEEK_END);
@@ -45,11 +46,9 @@ int configura_socket(){
   	endereco_serv.sin_port = htons(PORTA_SERVIDOR);
 
   	if(bind(socket_serv, (struct sockaddr *) &endereco_serv, sizeof(endereco_serv)) < 0){
-  		printf("Bindo no socket falhou!\n");
+  		printf("Bind no socket falhou!\n");
   		return 1;
   	} 
-  	
-  	listen(socket_serv, 2);
 
   	return socket_serv;
 	
@@ -89,7 +88,7 @@ int main(int argc, char *argv[]){
 	
 	FILE *BD;
 
-	BD = fopen("banco_de_dados.txt", "rb");
+	BD = fopen("database.txt", "rb");
 
 	socket_serv = configura_socket();
 
@@ -116,10 +115,10 @@ int main(int argc, char *argv[]){
   		}
   	}
 
-  	bloco blk;
+  	mensagem blk;
 
   	while(1){
-		memset(&blk, 0x0, sizeof(bloco));
+		memset(&blk, 0x0, sizeof(mensagem));
 		memset(buffer,'\0', MAX_BUFFER);
 		recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_cliente, &tam_struct_clienteA);
 		strcpy(buffer, "1");
@@ -130,4 +129,6 @@ int main(int argc, char *argv[]){
         break;
   	}
 
+	free(buffer);
+	return 0;
 }
