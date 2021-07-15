@@ -15,29 +15,19 @@
 
 
 void enviaRequisicao(int sd, struct sockaddr_in remoteServAddr, char * buffer) {
-  int n;
+  int rc;
 
+  int addrlen = sizeof(remoteServAddr);
   //envia a requisição do arquivo desejado
-  n = sendto(sd, buffer, strlen(buffer), 0, (struct sockaddr *) &remoteServAddr, sizeof(remoteServAddr));
+  rc = sendto(sd, buffer, strlen(buffer), 0, (struct sockaddr *) &remoteServAddr, addrlen);
 
   //checagem de erro
-  if(n == -1)
+  if(rc == -1)
   {
     perror("[ERROR] Enviar requisição para o servidor");
     exit(1);
   }
-
-
-  //Esperando resposta do servidor
-  while (1)
-  {
-    //zerando o buffer para receber a resposta do servidor
-    memset(buffer, '\0', SIZE);
-
-
-  }
   
-
 }
 
 
@@ -45,6 +35,7 @@ int main(int argc, char *argv[])
 {
 
   int sd, rc;
+  char PORTA_CLIENTE_B[4];
   struct sockaddr_in remoteServAddr;
 
   char *buffer = (char*) malloc(SIZE * sizeof(char));
@@ -78,6 +69,35 @@ int main(int argc, char *argv[])
 
   enviaRequisicao(sd, remoteServAddr, buffer);
 
+  
+  //zerando o buffer para receber a resposta do servidor
+  memset(buffer, '\0', SIZE);
+
+  while (1)
+  {
+
+    //Esperando resposta do servidor
+    int addrlen = sizeof(remoteServAddr);
+    rc = recvfrom(sd, buffer, SIZE, 0, (struct sockaddr *) &remoteServAddr, &addrlen);
+    
+    if (rc == -1)
+    {
+      perror("Error");
+      exit(1);
+    }
+
+    if(buffer[0] == '1') 
+    {
+      strcpy(PORTA_CLIENTE_B, &buffer[1]);
+      printf("O cliente na porta %s possui o arquivo.\n", PORTA_CLIENTE_B);
+      break;
+    }
+    else
+    {
+      printf("Error - Arquivo não encontrado na base de dados");
+      exit(1);
+    }
+  }
 
 
   free(buffer);
