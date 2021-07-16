@@ -11,13 +11,11 @@
 #define PORTA_SERVIDOR 1500
 #define MAX_MSG 100
 #define MAX_BUFFER 1024
-#define IP_LOCAL "127.0.0.1"
 
-//struct de resposta do cliente A ao servidor
-typedef struct mensagem{
+typedef struct bloco{
     int porta_cliente;          
-    char arquivo[20];     
-}mensagem;
+    char arquivo[30];     
+}bloco;
 
 int verifica_banco(FILE *BD){
 	fseek(BD, 0, SEEK_END);
@@ -46,9 +44,11 @@ int configura_socket(){
   	endereco_serv.sin_port = htons(PORTA_SERVIDOR);
 
   	if(bind(socket_serv, (struct sockaddr *) &endereco_serv, sizeof(endereco_serv)) < 0){
-  		printf("Bind no socket falhou!\n");
+  		printf("Bindo no socket falhou!\n");
   		return 1;
   	} 
+  	
+  	listen(socket_serv, 2);
 
   	return socket_serv;
 	
@@ -74,13 +74,12 @@ int verifica_buffer(char *buffer){
 	return 0;
 }
 
-
 int main(int argc, char *argv[]){
 
 	int socket_serv;
 
 	
-	struct sockaddr_in endereco_cliente;
+	struct sockaddr_in endereco_clienteA;
 	socklen_t tam_struct_clienteA;
 
 	char cliente_com_arquivo[MAX_MSG];
@@ -88,7 +87,7 @@ int main(int argc, char *argv[]){
 	
 	FILE *BD;
 
-	BD = fopen("database.txt", "rb");
+	BD = fopen("banco_de_dados.txt", "rb");
 
 	socket_serv = configura_socket();
 
@@ -96,9 +95,9 @@ int main(int argc, char *argv[]){
   		
   		memset(buffer,'\0', MAX_BUFFER);
   		
-  		tam_struct_clienteA = sizeof(endereco_cliente);
+  		tam_struct_clienteA = sizeof(endereco_clienteA);
 
-  		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_cliente, &tam_struct_clienteA);
+  		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
 
   		if(verifica_buffer(buffer)){
   			if(verifica_banco(BD)) return 1;
@@ -106,29 +105,27 @@ int main(int argc, char *argv[]){
   				memset(buffer,'\0', MAX_BUFFER);
 				buffer[0] = '1';
 				strcat(buffer, cliente_com_arquivo);
-				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_cliente, tam_struct_clienteA);
+				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
   			}else{
   				memset(buffer,'\0', MAX_BUFFER);
 				buffer[0] = '0';
-				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_cliente, tam_struct_clienteA);
+				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
   			}
   		}
   	}
 
-  	mensagem blk;
+  	bloco blk;
 
   	while(1){
-		memset(&blk, 0x0, sizeof(mensagem));
+		memset(&blk, 0x0, sizeof(bloco));
 		memset(buffer,'\0', MAX_BUFFER);
-		recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_cliente, &tam_struct_clienteA);
+		recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
 		strcpy(buffer, "1");
-		sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_cliente, tam_struct_clienteA);
+		sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
 		fprintf(BD, "\n%s %d", blk.arquivo, blk.porta_cliente);
 		fflush(BD);
 		fclose(BD);
         break;
   	}
 
-	free(buffer);
-	return 0;
 }
