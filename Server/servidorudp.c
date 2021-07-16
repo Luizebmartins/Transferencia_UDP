@@ -44,7 +44,7 @@ int configura_socket(){
   	endereco_serv.sin_port = htons(PORTA_SERVIDOR);
 
   	if(bind(socket_serv, (struct sockaddr *) &endereco_serv, sizeof(endereco_serv)) < 0){
-  		printf("Bindo no socket falhou!\n");
+  		printf("Bind no socket falhou!\n");
   		return 1;
   	} 
   	
@@ -77,7 +77,6 @@ int verifica_buffer(char *buffer){
 int main(int argc, char *argv[]){
 
 	int socket_serv;
-
 	
 	struct sockaddr_in endereco_clienteA;
 	socklen_t tam_struct_clienteA;
