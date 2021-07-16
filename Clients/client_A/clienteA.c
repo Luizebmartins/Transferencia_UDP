@@ -20,7 +20,28 @@ typedef struct mensagem {
   char arquivo[20];
 } mensagem;
 
-void enviaRequisicao(int sd, struct sockaddr_in remoteAddr, char *buffer, int tipo)
+// Função para receber as mensagens
+void recebeMensagem(int sd, struct sockaddr_in remoteAddr, char *buffer)
+{
+  int rc;
+  while (1)
+  {
+    int addrlen = sizeof(remoteAddr);
+    rc = recvfrom(sd, buffer, SIZE, 0, (struct sockaddr *)&remoteAddr, &addrlen);
+
+    //checagem de erro
+    if (rc == -1)
+    {
+      perror("Error");
+      exit(1);
+    }
+    else
+      break;
+  }
+}
+
+//função para enviar as mensagens
+void enviaMensagem(int sd, struct sockaddr_in remoteAddr, char *buffer, int tipo)
 {
   int rc;
   int addrlen = sizeof(remoteAddr);
@@ -40,11 +61,11 @@ void enviaRequisicao(int sd, struct sockaddr_in remoteAddr, char *buffer, int ti
   }
 
   //Se for do tipo 2, é a resposta contendo uma struct ao servidor.
-  else
+  else if (tipo == 2)
   {
     mensagem mensagem;
     mensagem.porta_cliente = PORTA_CLIENTE_A;
-    strcpy(buffer, mensagem.arquivo);
+    strcpy(mensagem.arquivo, buffer);
 
     //envia a mensagem
     rc = sendto(sd, &mensagem, sizeof(mensagem), 0, (struct sockaddr *)&remoteAddr, addrlen);
@@ -65,6 +86,7 @@ int main(int argc, char *argv[])
   char PORTA_CLIENTE_B[4];
   struct sockaddr_in remoteServAddr;
 
+  //buffer para guardar dados temporários
   char *buffer = (char *)malloc(SIZE * sizeof(char));
 
   if (!buffer)
@@ -80,6 +102,7 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
+  //passa o nome do arquivo desejado para o buffer
   strcpy(buffer, argv[1]);
 
   //Criação do socket
@@ -101,41 +124,37 @@ int main(int argc, char *argv[])
 
   //enviando requisição ao servidor, em busca de algum cliente
   //que tenha tal arquivo
-  enviaRequisicao(sd, remoteServAddr, buffer, 1);
+  enviaMensagem(sd, remoteServAddr, buffer, 1);
 
+
+  printf("esperando resposta do servidor..\n");
   //zerando o buffer para receber a resposta do servidor
   memset(buffer, '\0', SIZE);
 
-  printf("esperando resposta do servidor..\n");
-
-  while (1)
+  //Recebe a resposta do servidor, contendo a porta do cliente
+  //que possui o arquivo
+  recebeMensagem(sd, remoteServAddr, buffer);
+  if (buffer[0] == '1')
   {
-
-    //Esperando resposta do servidor
-    int addrlen = sizeof(remoteServAddr);
-    rc = recvfrom(sd, buffer, SIZE, 0, (struct sockaddr *)&remoteServAddr, &addrlen);
-
-    if (rc == -1)
-    {
-      perror("Error");
-      exit(1);
-    }
-
-    if (buffer[0] == '1')
-    {
-      strcpy(PORTA_CLIENTE_B, &buffer[1]);
-      printf("O cliente na porta %s possui o arquivo.\n", PORTA_CLIENTE_B);
-      break;
-    }
-    else
-    {
-      printf("Error - Arquivo não encontrado na base de dados.\n");
-      exit(1);
-    }
+    strcpy(PORTA_CLIENTE_B, &buffer[1]);
+    printf("O cliente na porta %s possui o arquivo.\n", PORTA_CLIENTE_B);
+    memset(buffer, '\0', SIZE);
+  }
+  else
+  {
+    printf("Error - Arquivo não encontrado na base de dados.\n");
+    exit(1);
   }
 
+
   //Avisando o servidor que o cliente A também possui o arquivo
-  
+  strcpy(buffer, argv[1]);
+  enviaMensagem(sd, remoteServAddr, buffer, 2);
+
+  memset(buffer, '\0', SIZE);
+  recebeMensagem(sd, remoteServAddr, buffer);
+  if(buffer[0] == '1')
+    printf("Cliente A agora presente na base de dados\n");
 
   free(buffer);
   return 0;

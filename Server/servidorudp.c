@@ -47,8 +47,6 @@ int configura_socket(){
   		printf("Bind no socket falhou!\n");
   		return 1;
   	} 
-  	
-  	listen(socket_serv, 2);
 
   	return socket_serv;
 	
@@ -86,7 +84,7 @@ int main(int argc, char *argv[]){
 	
 	FILE *BD;
 
-	BD = fopen("banco_de_dados.txt", "rb");
+	BD = fopen("database.txt", "rb");
 
 	socket_serv = configura_socket();
 
@@ -105,23 +103,24 @@ int main(int argc, char *argv[]){
 				buffer[0] = '1';
 				strcat(buffer, cliente_com_arquivo);
 				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
+				break;
   			}else{
   				memset(buffer,'\0', MAX_BUFFER);
 				buffer[0] = '0';
 				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
+				break;
   			}
   		}
   	}
 
   	bloco blk;
-
+	printf("esperando mensagem\n");
   	while(1){
 		memset(&blk, 0x0, sizeof(bloco));
 		memset(buffer,'\0', MAX_BUFFER);
 		recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
-		strcpy(buffer, "1");
 		sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
-		fprintf(BD, "\n%s %d", blk.arquivo, blk.porta_cliente);
+		fprintf(BD, "\n%d %s", blk.porta_cliente, blk.arquivo);
 		fflush(BD);
 		fclose(BD);
         break;
