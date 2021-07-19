@@ -1,4 +1,4 @@
-imagem.png 1502
+imagem.jpg 1502
 vidaloca.mp3 1502
 loremipsum.pdf 1502
 arquivoidiota.txt 1502

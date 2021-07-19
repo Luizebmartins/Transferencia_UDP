@@ -15,8 +15,8 @@
 typedef struct pacote{
 	int numseq;     	        //número de sequência do pacote			
 	long int check_sum;			//valor do checksum do pacote	
-	char segmento[512];			//segmento do pacote
 	int tam;                    //tamanho do pacote
+	char dados[512];			//segmento do pacote
 }pacote;
 
 //função responsável por realizar o checksum
@@ -61,13 +61,14 @@ int enviaPacote(char *mensagem, FILE *arquivo, int socket_clienteB, struct socka
         printf("\nEnviando o pacote %d de numero de sequencia %d. Por favor, aguarde...\n", contador_pacote, num_seq);
         
         //le 512 bytes do arquivo
-        tam = fread(pkt.segmento, 1, 512, arquivo);
+        tam = fread(pkt.dados, 1, 512, arquivo);
 
         pkt.tam = tam;
         //strcpy(pkt.segmento, mensagem);
+        
         pkt.numseq = num_seq;
-        pkt.check_sum = checksum(pkt.segmento, pkt.tam);
-
+        pkt.check_sum = checksum(pkt.dados, pkt.tam);
+        printf("Numero sequencia: %d\nChecksum: %li\nTamanho: %d\n", pkt.numseq, pkt.check_sum, pkt.tam);
         //envia o pacote para o cliente A
         if(sendto(socket_clienteB, &pkt, sizeof(pkt)+1, 0, (struct sockaddr *) &endereco_clienteB, tam_struct_clienteB) < 0){
             printf("Falha ao enviar o pacote de numero de sequencia = %d!\n", num_seq);
@@ -86,7 +87,7 @@ int enviaPacote(char *mensagem, FILE *arquivo, int socket_clienteB, struct socka
     //depois que termina o arquivo, envia um pacote final com tamanho igual a zero
     //indicando para o cliente A que a transferência do arquivo acabou
     pkt.tam = 0;
-    strcpy(pkt.segmento, "");
+    strcpy(pkt.dados, "");
     pkt.numseq = 0;
     pkt.check_sum = 0;
 
@@ -131,10 +132,10 @@ int verifica_buffer(char *buffer){
 int main(){
 
     int socket_clienteB;
-    struct sockaddr_in endereco_clienteB;
+    struct sockaddr_in endereco_clienteA;
 
     char *buffer, *msg = (char *) malloc(512 * sizeof(char));
-    socklen_t tam_struct_clienteB; 
+    socklen_t tam_struct_clienteA; 
     FILE *arquivo_clienteB;
 
     buffer = (char*) malloc(MAX_BUFFER * sizeof(char));
@@ -148,9 +149,9 @@ int main(){
 
         memset(buffer, '\0', MAX_BUFFER);
         
-        tam_struct_clienteB = sizeof(endereco_clienteB);
+        tam_struct_clienteA = sizeof(endereco_clienteA);
 
-        recvfrom(socket_clienteB, buffer, MAX_BUFFER + 1, 0, (struct sockaddr *) &endereco_clienteB, &tam_struct_clienteB);
+        recvfrom(socket_clienteB, buffer, MAX_BUFFER, 0, (struct sockaddr *) &endereco_clienteA, &tam_struct_clienteA);
 
         printf("Mensagem recebida do cliente A: %s\n", buffer);
         
@@ -160,17 +161,18 @@ int main(){
 
             if(!arquivo_clienteB){
                 strcpy(buffer,"Erro");
-                sendto(socket_clienteB, buffer, strlen(buffer) + 1 , 0, (struct sockaddr *) &endereco_clienteB, tam_struct_clienteB);
+                sendto(socket_clienteB, buffer, strlen(buffer) + 1 , 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
             }else{
                 strcpy(buffer, "Transferindo");
-                sendto(socket_clienteB, buffer, strlen(buffer) + 1 , 0, (struct sockaddr *) &endereco_clienteB, tam_struct_clienteB);
-                enviaPacote(msg, arquivo_clienteB, socket_clienteB, endereco_clienteB, tam_struct_clienteB);
+                // sendto(socket_clienteB, buffer, strlen(buffer) + 1 , 0, (struct sockaddr *) &endereco_clienteA, tam_struct_clienteA);
+                enviaPacote(msg, arquivo_clienteB, socket_clienteB, endereco_clienteA, tam_struct_clienteA);
            }
 
            printf("\n\nEnvio do arquivo finalizado sem erros!\n");
            break;
            fclose(arquivo_clienteB);
         }
+        break;
 
     }
 }
