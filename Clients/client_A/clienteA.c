@@ -140,37 +140,35 @@ void recebePacote(int sd, struct sockaddr_in remoteAddr, char *nomearq) {
         exit(1);
     }
     
-    socklen_t addrlen = sizeof(remoteAddr);    
+    socklen_t addrlen = sizeof(remoteAddr);  
+
     //recebe pacote do cliente B
     while (1)
     {
         memset(&pkt, 0, sizeof(pacote));
-        printf("teste\n");
-        recvfrom(sd, &pkt, sizeof(pkt), 0, (struct sockaddr *) &remoteAddr, &addrlen);
+    
+        rc = recvfrom(sd, &pkt, sizeof(pkt), 0, (struct sockaddr *) &remoteAddr, &addrlen);
         if (rc == -1)
         {
             perror("Error");
             exit(1);
         }
 
-       
-
-        printf("\nPacote %d recebido!\nNumero sequencia: %d\nChecksum: %li\nTamanho: %d\n", cont, pkt.numseq, pkt.check_sum, pkt.tam);
-         if(pkt.tam == 0)
+        if(pkt.tam == 0)
             break;
 
         //cheksum corresponde
-        if(checksum(pkt.dados, pkt.tam) == pkt.check_sum)
+        if(checksum(pkt.dados, pkt.tam) == pkt.check_sum && pkt.numseq == cont + 1)
         {
             fwrite(pkt.dados, 1, pkt.tam, arq);
             sendto(sd, ack, strlen(ack), 0, (struct sockaddr *) &remoteAddr, addrlen);
+            cont++;
         }
-
+        //arquivo corrompeu no caminho
         else
             sendto(sd, nak, strlen(ack), 0, (struct sockaddr *) &remoteAddr, addrlen);
-    
-        cont++;
     }
+
     fclose(arq);
 }
 
@@ -255,9 +253,6 @@ int main(int argc, char *argv[])
     enviaMensagem(sd, remoteClientB, buffer, 1);
 
     recebePacote(sd, remoteClientB, buffer);
-
-
-
 
     //Avisando o servidor que o cliente A também possui o arquivo
     strcpy(buffer, argv[1]);

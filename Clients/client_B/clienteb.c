@@ -68,7 +68,7 @@ int enviaPacote(char *mensagem, FILE *arquivo, int socket_clienteB, struct socka
         
         pkt.numseq = num_seq;
         pkt.check_sum = checksum(pkt.dados, pkt.tam);
-        printf("Numero sequencia: %d\nChecksum: %li\nTamanho: %d\n", pkt.numseq, pkt.check_sum, pkt.tam);
+     
         //envia o pacote para o cliente A
         if(sendto(socket_clienteB, &pkt, sizeof(pkt)+1, 0, (struct sockaddr *) &endereco_clienteB, tam_struct_clienteB) < 0){
             printf("Falha ao enviar o pacote de numero de sequencia = %d!\n", num_seq);
@@ -142,11 +142,11 @@ int main(){
 
     socket_clienteB = configura_socket();
 
-    printf("Aguardando solicitações...\n");
 
     //---------COMUNICAÇÃO COM O CLIENTE A---------
     while(1){
 
+        printf("Aguardando solicitações...\n");
         memset(buffer, '\0', MAX_BUFFER);
         
         tam_struct_clienteA = sizeof(endereco_clienteA);
@@ -169,10 +169,8 @@ int main(){
            }
 
            printf("\n\nEnvio do arquivo finalizado sem erros!\n");
-           break;
            fclose(arquivo_clienteB);
         }
-        break;
 
     }
 }
