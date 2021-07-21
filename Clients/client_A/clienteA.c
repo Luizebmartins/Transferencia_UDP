@@ -28,9 +28,9 @@ typedef struct pacote
     char dados[512];
 } pacote;
 
-long int checksum(char segmento[], int tamanho){
+int checksum(char segmento[], int tamanho){
 
-	long int checksum = 0;
+	int checksum = 0;
 
 	//percorrer o tamanho do segmento
 	for(int i=0; i<tamanho; i++){
@@ -43,26 +43,6 @@ long int checksum(char segmento[], int tamanho){
 	return checksum;
 }
 
-//Funções para transformar char em int
-int powInt(int x, int y)
-{
-    for (int i = 0; i < y; i++)
-        x *= 10;
-
-    return x;
-}
-
-int parseInt(char *chars)
-{
-    int sum = 0;
-    int len = strlen(chars);
-    for (int x = 0; x < len; x++)
-    {
-        int n = chars[len - (x + 1)] - '0';
-        sum = sum + powInt(n, x);
-    }
-    return sum;
-}
 
 // Função para receber as mensagens
 void recebeMensagem(int sd, struct sockaddr_in remoteAddr, char *buffer)
@@ -229,7 +209,7 @@ int main(int argc, char *argv[])
     recebeMensagem(sd, remoteServAddr, buffer);
     if (buffer[0] == '1')
     {
-        PORTA_CLIENTE_B = parseInt(&buffer[1]);
+        PORTA_CLIENTE_B = atoi(&buffer[1]);
         printf("O cliente na porta %d possui o arquivo.\n", PORTA_CLIENTE_B);
         memset(buffer, '\0', SIZE);
     }

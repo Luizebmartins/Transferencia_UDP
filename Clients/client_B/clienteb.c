@@ -119,7 +119,6 @@ int configura_socket(){
         exit(1);
     } 
     
-    listen(socket_clienteB, 2);
 
     return socket_clienteB;
 }

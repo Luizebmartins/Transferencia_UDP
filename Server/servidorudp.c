@@ -18,7 +18,7 @@ typedef struct bloco
 	char arquivo[30];
 } bloco;
 
-int verifica_banco(FILE *BD)
+int verifica_banco_vazio(FILE *BD)
 {
 	fseek(BD, 0, SEEK_END);
 	int arq_vazio = ftell(BD);
@@ -77,6 +77,23 @@ int busca_no_banco(FILE *BD, char *buffer, char *porta_cliente_com_arquivo)
 	return 0;
 }
 
+int atualiza_banco(FILE *BD, struct bloco blk)
+{
+	char porta_cliente[MAX_MSG];
+	char arquivo_BD[MAX_MSG];
+
+	while (fscanf(BD, "%s %s", arquivo_BD, porta_cliente) != EOF)
+	{
+		if (strcmp(arquivo_BD, blk.arquivo) == 0 && blk.porta_cliente == atoi(porta_cliente))
+			return 1;
+	}
+
+	fprintf(BD, "%s %d\n", blk.arquivo, blk.porta_cliente);
+	fflush(BD);
+
+	return 0;
+}
+
 int verifica_buffer(char *buffer)
 {
 	if (buffer[0] != '\0')
@@ -97,7 +114,7 @@ int main(int argc, char *argv[])
 
 	FILE *BD;
 
-	BD = fopen("database.txt", "rb");
+	BD = fopen("database.txt", "r+b");
 
 	socket_serv = configura_socket();
 
@@ -113,8 +130,8 @@ int main(int argc, char *argv[])
 		printf("buffer: %s\n", buffer);
 		if (verifica_buffer(buffer))
 		{
-			
-			if (verifica_banco(BD))
+
+			if (verifica_banco_vazio(BD))
 				exit(1);
 			if (busca_no_banco(BD, buffer, cliente_com_arquivo))
 			{
@@ -131,9 +148,7 @@ int main(int argc, char *argv[])
 					memset(buffer, '\0', MAX_BUFFER);
 					recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *)&endereco_clienteA, &tam_struct_clienteA);
 					sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA);
-					//fprintf(BD, "\n%d %s", blk.porta_cliente, blk.arquivo);
-					//fflush(BD);
-					
+                    atualiza_banco(BD, blk);
 					break;
 				}
 			}
@@ -146,3 +161,4 @@ int main(int argc, char *argv[])
 		}
 	}
 }
+	
