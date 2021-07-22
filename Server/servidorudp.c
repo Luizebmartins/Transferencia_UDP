@@ -145,7 +145,6 @@ int main(int argc, char *argv[])
 				while (1)
 				{
 					memset(&blk, 0x0, sizeof(bloco));
-					memset(buffer, '\0', MAX_BUFFER);
 					recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *)&endereco_clienteA, &tam_struct_clienteA);
 					sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA);
                     atualiza_banco(BD, blk);
