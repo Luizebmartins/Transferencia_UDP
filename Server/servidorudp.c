@@ -42,8 +42,9 @@ int configura_socket()
 
 	if (socket_serv < 0)
 	{
+		perror("Error");
 		printf("Criação do socket falhou!\n");
-		return 1;
+		exit(1);
 	}
 
 	endereco_serv.sin_family = AF_INET;
@@ -52,8 +53,9 @@ int configura_socket()
 
 	if (bind(socket_serv, (struct sockaddr *)&endereco_serv, sizeof(endereco_serv)) < 0)
 	{
+		perror("Error");
 		printf("Bind no socket falhou!\n");
-		return 1;
+		exit(1);
 	}
 
 	return socket_serv;
