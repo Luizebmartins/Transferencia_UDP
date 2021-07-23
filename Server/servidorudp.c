@@ -117,6 +117,7 @@ int main(int argc, char *argv[])
 	BD = fopen("database.txt", "r+b");
 
 	socket_serv = configura_socket();
+	printf("Servidor online\n\n");
 
 	while (1)
 	{
@@ -126,8 +127,8 @@ int main(int argc, char *argv[])
 		tam_struct_clienteA = sizeof(endereco_clienteA);
 
 		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, &tam_struct_clienteA);
+		printf("Requisição recebida!\n");
 
-		printf("buffer: %s\n", buffer);
 		if (verifica_buffer(buffer))
 		{
 
@@ -138,16 +139,18 @@ int main(int argc, char *argv[])
 				memset(buffer, '\0', MAX_BUFFER);
 				buffer[0] = '1';
 				strcat(buffer, cliente_com_arquivo);
+				printf("Enviando resposta ao cliente\n");
 				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA);
 
 				bloco blk;
-				printf("esperando mensagem\n");
+
 				while (1)
 				{
 					memset(&blk, 0x0, sizeof(bloco));
 					recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *)&endereco_clienteA, &tam_struct_clienteA);
 					sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA);
                     atualiza_banco(BD, blk);
+					printf("Banco de dados atualizado\n");
 					break;
 				}
 			}

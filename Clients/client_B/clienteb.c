@@ -45,7 +45,6 @@ int enviaPacote(FILE *arquivo, int socket_clienteB, struct sockaddr_in endereco_
     int num_seq = 0;
     pacote pkt;
 
-   
     memset(&pkt, 0x0, sizeof(pkt));
 
     //enquanto o arquivo não acabar
@@ -58,28 +57,31 @@ int enviaPacote(FILE *arquivo, int socket_clienteB, struct sockaddr_in endereco_
         pkt.tam = fread(pkt.dados, 1, 512, arquivo);
         pkt.numseq = num_seq;
         pkt.check_sum = checksum(pkt.dados, pkt.tam);
-    
+
         //envia o pacote
         while (1)
         {
             memset(buffer, '\0', MAX_BUFFER);
             if (sendto(socket_clienteB, &pkt, sizeof(pkt), 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA) < 0)
             {
-                printf("Falha ao enviar o pacote de numero de sequencia = %d!\n", num_seq);
-                return -1;
+                perror("Error");
+                exit(1);
             }
 
-        
             if (recvfrom(socket_clienteB, buffer, sizeof(buffer), 0, (struct sockaddr *)&endereco_clienteA, &tam_struct_clienteA) < 0)
             {
-                printf("Erro ao receber ack do cliente A!\n");
-                return -1;
+                perror("Error");
+                exit(1);
             }
-            
+
             //só passa para o próximo pacote quando chegar um ACK simbolizado pelo valor "1"
-            if(strcmp(buffer, "1") == 0)
+            if (buffer[0] == '1')
+            {
+                printf("Pacote %d enviado com sucesso!\n", pkt.numseq);
                 break;
-            
+            }
+            else
+                printf("Falha ao enviar pacote %d, iniciando reenvio\n", pkt.numseq);
         }
     }
 
@@ -144,7 +146,7 @@ int main()
     buffer = (char *)malloc(MAX_BUFFER * sizeof(char));
 
     socket_clienteB = configura_socket();
-    
+
     printf("Cliente B online\n\n");
 
     //Comunicação com o cliente A
