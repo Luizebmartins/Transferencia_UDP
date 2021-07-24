@@ -23,26 +23,74 @@ typedef struct mensagem
 typedef struct pacote
 {
     int numseq;
-    long int check_sum;
+    int checksum[8];
     int tam;
     char dados[1024];
 } pacote;
 
-int checksum(char segmento[], int tamanho)
+//função para somar dois valores binários
+void addBinary(int result[], int binario[])
 {
+    int i, c = 0;
 
-    int checksum = 0;
-
-    //percorrer o tamanho do segmento
-    for (int i = 0; i < tamanho; i++)
+    int aux;
+    for (i = 7; i >= 0; i--)
     {
+        aux = result[i];
+        result[i] = ((aux ^ binario[i]) ^ c);                    //a xor b xor c
+        c = ((aux & binario[i]) | (aux & c)) | (binario[i] & c); //ab+bc+ca
+    }
+    if (c == 1)
+    {
+        int aux;
+        for (i = 7; i >= 0; i--)
+        {
+            aux = result[i];
+            result[i] = ((aux ^ 0) ^ c);           //a xor 0 xor c
+            c = ((aux & 0) | (aux & c)) | (0 & c); //a0+bc+0a
+        }
+    }
+}
 
-        //converte pra inteiro o caracter e soma
-        checksum += (int)(segmento[i]);
+//Função para calcular o cheksum do pacote
+int checksum(pacote *pkt)
+{
+    if (pkt == NULL)
+        return 0; /* no input string */
+
+    int binario[8];
+
+    int Sum[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+    //percorre todas as 1204 posições
+    for (int i = 0; i < pkt->tam; ++i)
+    {
+        //tranforma cada posição em um palavra de 8 bits
+        char ch = pkt->dados[i];
+        for (int j = 7; j >= 0; --j)
+        {
+            if (ch & (1 << j))
+                binario[7 - j] = 1;
+
+            else
+                binario[7 - j] = 0;
+        }
+
+        //vai somando cada palavra
+        addBinary(Sum, binario);
     }
 
-    //retorna o valor do checksum
-    return checksum;
+    //Soma com o cheksum
+    addBinary(Sum, pkt->checksum);
+
+    //verifica se o pacote está corrompído
+    //precisar estar assim: (1,1,1,1,1,1,1,1)
+    int valida = 1;
+    for (int i = 0; i < 8; i++)
+        if (Sum[i] != 1)
+            valida = 0;
+
+    return valida;
 }
 
 // Função para receber as mensagens
@@ -105,7 +153,6 @@ void enviaMensagem(int sd, struct sockaddr_in remoteAddr, char *buffer, int tipo
     }
 }
 
-
 void recebePacote(int sd, struct sockaddr_in remoteAddr, char *nomearq)
 {
 
@@ -125,7 +172,6 @@ void recebePacote(int sd, struct sockaddr_in remoteAddr, char *nomearq)
 
     socklen_t addrlen = sizeof(remoteAddr);
 
-    
     //recebe pacote do cliente B
     while (1)
     {
@@ -138,24 +184,21 @@ void recebePacote(int sd, struct sockaddr_in remoteAddr, char *nomearq)
             exit(1);
         }
 
-        // if (pkt.tam == 0)
-        //     break;
-
-        
         //cheksum corresponde
-        if (checksum(pkt.dados, pkt.tam) == pkt.check_sum && pkt.numseq == cont + 1)
+        if (checksum(&pkt) == 1 && pkt.numseq == cont + 1)
         {
-            
+
             printf("Pacote %d recebido com sucesso\n", pkt.numseq);
             usleep(4000);
-            system("tput cuu1"); 
-            system("tput dl1"); 
+            system("tput cuu1");
+            system("tput dl1");
 
             fwrite(pkt.dados, 1, pkt.tam, arq);
             sendto(sd, &ack, sizeof(ack), 0, (struct sockaddr *)&remoteAddr, addrlen);
             cont++;
 
-            if(pkt.tam < 1024)
+            //se o tamanho é menor que 1024, é o ultimo pacote
+            if (pkt.tam < 1024)
                 break;
         }
         //arquivo corrompeu no caminho
@@ -179,7 +222,6 @@ int main(int argc, char *argv[])
 
     //buffer para guardar dados temporários
     char *buffer = (char *)malloc(SIZE * sizeof(char));
-
 
     // Validação do parâmetro passado
     if (argc == 1)
@@ -247,7 +289,7 @@ int main(int argc, char *argv[])
     sleep(1);
     printf("Requisição enviada ao cliente que possui o arquivo\n");
     memset(buffer, '\0', SIZE);
-    
+
     recebeMensagem(sd, remoteClientB, buffer);
     //se o cliente B confirmar que tem o arquivo, começa a transferência
     if (buffer[0] == '1')
