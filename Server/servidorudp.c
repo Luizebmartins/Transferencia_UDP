@@ -9,30 +9,17 @@
 #include <stdlib.h>
 
 #define PORTA_SERVIDOR 1500
-#define MAX_MSG 100
-#define MAX_BUFFER 1024
+#define IP_LOCAL "127.0.0.1"
+#define SIZE_BUFFER 1024
 
-typedef struct bloco
+typedef struct segmento
 {
-	int porta_cliente;
-	char arquivo[30];
-} bloco;
+	int porta;
+	char arquivo[50];
+} segmento;
 
-int verifica_banco_vazio(FILE *BD)
-{
-	fseek(BD, 0, SEEK_END);
-	int arq_vazio = ftell(BD);
-	if (arq_vazio != 0)
-	{
-		fseek(BD, 0, SEEK_SET);
-		return 0;
-	}
-	else
-		printf("Banco de dados vazio.\n");
 
-	return 1;
-}
-
+// Função para configurar o servidor
 int configura_socket()
 {
 	struct sockaddr_in endereco_serv;
@@ -43,35 +30,36 @@ int configura_socket()
 	if (socket_serv < 0)
 	{
 		perror("Error");
-		printf("Criação do socket falhou!\n");
 		exit(1);
 	}
 
 	endereco_serv.sin_family = AF_INET;
-	endereco_serv.sin_addr.s_addr = htonl(INADDR_ANY);
+	endereco_serv.sin_addr.s_addr = inet_addr(IP_LOCAL);
 	endereco_serv.sin_port = htons(PORTA_SERVIDOR);
 
 	if (bind(socket_serv, (struct sockaddr *)&endereco_serv, sizeof(endereco_serv)) < 0)
 	{
 		perror("Error");
-		printf("Bind no socket falhou!\n");
 		exit(1);
 	}
 
 	return socket_serv;
 }
 
-int busca_no_banco(FILE *BD, char *buffer, char *porta_cliente_com_arquivo)
+//Função para verificar se algum cliente na base de dados
+//possui o arquivo, retornando a porta de tal cliente.
+int busca_no_banco(FILE *BD, char *buffer, char *portaC)
 {
 
-	char porta_cliente[MAX_MSG];
-	char arquivo_BD[MAX_MSG];
-
-	while (fscanf(BD, "%s %s", arquivo_BD, porta_cliente) != EOF)
+	char porta[5];
+	char arquivo[50];
+	
+	fseek(BD, 0, SEEK_SET);
+	while (fscanf(BD, "%s %s", arquivo, porta) != EOF)
 	{
-		if (strcmp(arquivo_BD, buffer) == 0)
+		if (strcmp(arquivo, buffer) == 0)
 		{
-			strcpy(porta_cliente_com_arquivo, porta_cliente);
+			strcpy(portaC, porta);
 			return 1;
 		}
 	}
@@ -79,27 +67,31 @@ int busca_no_banco(FILE *BD, char *buffer, char *porta_cliente_com_arquivo)
 	return 0;
 }
 
-int atualiza_banco(FILE *BD, struct bloco blk)
+//Função para atualizar o banco, primeiro verifica 
+//primeiro verifica se a informação já está presente
+//caso não esteja, o banco é atualizado
+int atualiza_banco(FILE *BD, struct segmento blk)
 {
-	char porta_cliente[MAX_MSG];
-	char arquivo_BD[MAX_MSG];
+	char porta[5];
+	char arquivo[50];
 
-	while (fscanf(BD, "%s %s", arquivo_BD, porta_cliente) != EOF)
+	while (fscanf(BD, "%s %s", arquivo, porta) != EOF)
 	{
-		if (strcmp(arquivo_BD, blk.arquivo) == 0 && blk.porta_cliente == atoi(porta_cliente))
-			return 1;
+		if (strcmp(arquivo, blk.arquivo) == 0 && blk.porta == atoi(porta))
+			return 0;
 	}
 
-	fprintf(BD, "%s %d\n", blk.arquivo, blk.porta_cliente);
+	fprintf(BD, "%s %d\n", blk.arquivo, blk.porta);
 	fflush(BD);
 
 	return 0;
 }
 
-int verifica_buffer(char *buffer)
+int verifica_buffer(char *buffer)			
 {
 	if (buffer[0] != '\0')
 		return 1;
+	
 	return 0;
 }
 
@@ -109,58 +101,70 @@ int main(int argc, char *argv[])
 	int socket_serv;
 
 	struct sockaddr_in endereco_clienteA;
-	socklen_t tam_struct_clienteA;
+	socklen_t tam_clienteA;
 
-	char cliente_com_arquivo[MAX_MSG];
-	char *buffer = (char *)malloc(MAX_BUFFER * sizeof(char));
+	char cliente_com_arquivo[50];
+	char *buffer = (char *)malloc(SIZE_BUFFER * sizeof(char));
 
 	FILE *BD;
-
 	BD = fopen("database.txt", "r+b");
+	if (BD == NULL)
+    {
+        printf("Error - Arquivo não pôde ser aberto\n");
+        exit(1);
+    }
 
+	//configura o socket do server
 	socket_serv = configura_socket();
 	printf("Servidor online\n\n");
 
+	//Comunicação com o cliente A
 	while (1)
 	{
 
-		memset(buffer, '\0', MAX_BUFFER);
+		memset(buffer, '\0', SIZE_BUFFER);
 
-		tam_struct_clienteA = sizeof(endereco_clienteA);
+		tam_clienteA = sizeof(endereco_clienteA);
 
-		recvfrom(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, &tam_struct_clienteA);
+		recvfrom(socket_serv, buffer, SIZE_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, &tam_clienteA);
 		printf("Requisição recebida!\n");
 
+		//caso o buffer tenha conteúdo
 		if (verifica_buffer(buffer))
 		{
 
-			if (verifica_banco_vazio(BD))
-				exit(1);
+			//Caso o arquivo requisitado esteja ligado a algum
+			//cliente na base de dados, envia a porta desse cliente
+			//e espera um pedido do cliente A para atualizar o banco
 			if (busca_no_banco(BD, buffer, cliente_com_arquivo))
 			{
-				memset(buffer, '\0', MAX_BUFFER);
+				
+				memset(buffer, '\0', SIZE_BUFFER);
 				buffer[0] = '1';
 				strcat(buffer, cliente_com_arquivo);
 				printf("Enviando resposta ao cliente\n");
-				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA);
+				sendto(socket_serv, buffer, SIZE_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, tam_clienteA);
 
-				bloco blk;
-
+				//segmento que possui a porta do cliente A, e o arquivo
+				//que possui agora
+				printf("esperando resposta\n");
+				segmento blk;
 				while (1)
 				{
-					memset(&blk, 0x0, sizeof(bloco));
-					recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *)&endereco_clienteA, &tam_struct_clienteA);
-					sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA);
+					memset(&blk, 0, sizeof(segmento));
+					recvfrom(socket_serv, &blk, sizeof(blk), 0, (struct sockaddr *)&endereco_clienteA, &tam_clienteA);
                     atualiza_banco(BD, blk);
+					sendto(socket_serv, buffer, sizeof(buffer), 0, (struct sockaddr *)&endereco_clienteA, tam_clienteA);
 					printf("Banco de dados atualizado\n");
 					break;
 				}
 			}
+			//Caso ninguem tenha o arquivo, retorna um nak
 			else
 			{
-				memset(buffer, '\0', MAX_BUFFER);
+				memset(buffer, '\0', SIZE_BUFFER);
 				buffer[0] = '0';
-				sendto(socket_serv, buffer, MAX_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, tam_struct_clienteA);
+				sendto(socket_serv, buffer, SIZE_BUFFER, 0, (struct sockaddr *)&endereco_clienteA, tam_clienteA);
 			}
 		}
 	}

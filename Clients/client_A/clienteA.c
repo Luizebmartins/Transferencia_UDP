@@ -25,7 +25,7 @@ typedef struct pacote
     int numseq;
     long int check_sum;
     int tam;
-    char dados[512];
+    char dados[1024];
 } pacote;
 
 int checksum(char segmento[], int tamanho)
@@ -105,6 +105,7 @@ void enviaMensagem(int sd, struct sockaddr_in remoteAddr, char *buffer, int tipo
     }
 }
 
+
 void recebePacote(int sd, struct sockaddr_in remoteAddr, char *nomearq)
 {
 
@@ -124,6 +125,7 @@ void recebePacote(int sd, struct sockaddr_in remoteAddr, char *nomearq)
 
     socklen_t addrlen = sizeof(remoteAddr);
 
+    
     //recebe pacote do cliente B
     while (1)
     {
@@ -136,17 +138,25 @@ void recebePacote(int sd, struct sockaddr_in remoteAddr, char *nomearq)
             exit(1);
         }
 
-        if (pkt.tam == 0)
-            break;
+        // if (pkt.tam == 0)
+        //     break;
 
+        
         //cheksum corresponde
         if (checksum(pkt.dados, pkt.tam) == pkt.check_sum && pkt.numseq == cont + 1)
         {
-            if(cont%100 == 0)
-                printf("#");
+            
+            printf("Pacote %d recebido com sucesso\n", pkt.numseq);
+            usleep(4000);
+            system("tput cuu1"); 
+            system("tput dl1"); 
+
             fwrite(pkt.dados, 1, pkt.tam, arq);
             sendto(sd, &ack, sizeof(ack), 0, (struct sockaddr *)&remoteAddr, addrlen);
             cont++;
+
+            if(pkt.tam < 1024)
+                break;
         }
         //arquivo corrompeu no caminho
         else
@@ -203,7 +213,7 @@ int main(int argc, char *argv[])
     enviaMensagem(sd, remoteServAddr, buffer, 1);
 
     printf("Requisição enviada ao servidor\n");
-
+    sleep(1);
     //zerando o buffer para receber a resposta do servidor
     memset(buffer, '\0', SIZE);
 
@@ -234,15 +244,17 @@ int main(int argc, char *argv[])
     strcpy(buffer, argv[1]);
     //envia uma requisição com o nome do arquivo para o cliente B
     enviaMensagem(sd, remoteClientB, buffer, 1);
-
+    sleep(1);
     printf("Requisição enviada ao cliente que possui o arquivo\n");
     memset(buffer, '\0', SIZE);
-    //se o cliente B confirmar que tem o arquivo, começa a transferência
+    
     recebeMensagem(sd, remoteClientB, buffer);
-
+    //se o cliente B confirmar que tem o arquivo, começa a transferência
     if (buffer[0] == '1')
     {
+        sleep(1);
         printf("Iniciando transferência\n");
+        sleep(1);
         strcpy(buffer, argv[1]);
         recebePacote(sd, remoteClientB, buffer);
 
