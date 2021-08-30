@@ -1,5 +1,7 @@
 # Transferencia_UDP
-Trabalho feito para a matéria de Redes na UNIFEI. Simula localmente uma transferência UDP.
+<p align="justify">
+Trabalho feito para a matéria de Redes na UNIFEI. Simula localmente uma transferência UDP. Além disso, foram adicionados métodos para garantir uma transferência mais confiável.
+</p>
 
 Instruções:
 - Abra um terminal para Cliente A, CLiente B e para Server
