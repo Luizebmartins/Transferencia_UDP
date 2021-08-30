@@ -14,8 +14,8 @@ Instruções:
     gcc servidor.c -o server
 
 - Após ter compilado todos os arquivos, execute na seguinte ordem:
-1 - ./server
-2 - ./CB
+1 - ./server  
+2 - ./CB  
 3 - ./CA "arquivo.extensão"
 
 
